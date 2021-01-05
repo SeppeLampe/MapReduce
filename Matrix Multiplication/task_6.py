@@ -50,7 +50,7 @@ class MRMatrixMultiplication(MRJob):
         this final reducer gets the sum of all the multiplications per resulting matrix element
         :param key: (i,k) i is a row and k is a column in a resulting matrix
         :param values: each item of values is a result of multiplication of element A[i,j] on element B[j,k],
-        :return: (key=counts, value=word)
+        :return: (key=entry index in resulting matrix, value=value for the corresponding position)
         """
         final_sum = sum(values)
         c_i = key[0]  # resulting matrix row
