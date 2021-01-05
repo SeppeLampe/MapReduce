@@ -23,32 +23,37 @@ class CommonKeywords(MRJob):
         else:
             # Get rid of customer fields which are blank as these will all be added to one customer: ""
             if stockcode:
-                yield (year, stockcode), (quantity, quantity*price)
+                cost = quantity*price
+                yield (year, stockcode), (quantity, cost)
 
     def combiner_sum_bill(self, year_stock, stats):
-        quantity = sum([row[0] for row in list(stats)])
-        price = sum([row[1] for row in list(stats)])    # This is wrong for some reason...
+        stats_list = list(stats)
+        quantity = sum([row[0] for row in stats_list])
+        price = sum([row[1] for row in stats_list])    # This is wrong for some reason...
         yield year_stock, (quantity, price)
 
     def reducer_sum_bill(self, year_stock, stats):
-        quantity = sum([row[0] for row in list(stats)])
-        price = sum([row[1] for row in list(stats)])    # This is wrong for some reason...
+        #file.write(str(list(row[1] for row in list(stats))) + '\n')
+        stats_list = list(stats)
+        quantity = sum([row[0] for row in stats_list])
+        price = sum([row[1] for row in stats_list])    # This is wrong for some reason...
+        #file.write(f'{quantity}, {price}\n')
         yield year_stock, (quantity, price)
 
     def mapper_to_years(self, year_stock, yearly_stats):
-        yield year_stock[0], (yearly_stats[0], yearly_stats[1], year_stock[1])
+        yield year_stock[0], (yearly_stats[0], yearly_stats[1], year_stock[1]) # Year, (Quantity, price, stockcode)
 
     def reducer_find_max_10_per_year(self, year, yearly_stock_stats):
         yearly_stock_stats = list(yearly_stock_stats)
-        for yearly_quantity, yearly_revenue, stockcode in max(yearly_stock_stats, key=operator.itemgetter(0)):
-            yield year, yearly_quantity
-        for yearly_quantity, yearly_revenue, stockcode in max(yearly_stock_stats, key=operator.itemgetter(1)):
-            yield year, yearly_revenue
+        highest_quantity = sorted(yearly_stock_stats, key=operator.itemgetter(0), reverse=True)[0]
+        highest_price = sorted(yearly_stock_stats, key=operator.itemgetter(1), reverse=True)[0]
+        yield year, f"The item that was sold the most was stockcode '{highest_quantity[2]}' of which {highest_quantity[0]} items were sold"
+        yield year, f"The item that was sold for the most money was stockcode '{highest_price[2]}', which was sold for {highest_price[1]}$"
 
     def steps(self):
         return [
             MRStep(mapper=self.mapper_get_year_customer_price,
-                   combiner=self.combiner_sum_bill,
+                   #combiner=self.combiner_sum_bill,
                    reducer=self.reducer_sum_bill),
             MRStep(mapper=self.mapper_to_years,
                    reducer=self.reducer_find_max_10_per_year)
