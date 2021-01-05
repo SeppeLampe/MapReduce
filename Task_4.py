@@ -1,12 +1,8 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
-import re
 import datetime
 import operator
-import nltk
-file = open('test.txt', 'w', encoding='utf-8')
 
-WORD_RE = re.compile(r"[\w']+")
 class CommonKeywords(MRJob):
 
     def mapper_get_year_customer_price(self, _, line):
@@ -29,15 +25,13 @@ class CommonKeywords(MRJob):
     def combiner_sum_bill(self, year_stock, stats):
         stats_list = list(stats)
         quantity = sum([row[0] for row in stats_list])
-        price = sum([row[1] for row in stats_list])    # This is wrong for some reason...
+        price = sum([row[1] for row in stats_list])
         yield year_stock, (quantity, price)
 
     def reducer_sum_bill(self, year_stock, stats):
-        #file.write(str(list(row[1] for row in list(stats))) + '\n')
         stats_list = list(stats)
         quantity = sum([row[0] for row in stats_list])
-        price = sum([row[1] for row in stats_list])    # This is wrong for some reason...
-        #file.write(f'{quantity}, {price}\n')
+        price = sum([row[1] for row in stats_list])
         yield year_stock, (quantity, price)
 
     def mapper_to_years(self, year_stock, yearly_stats):
@@ -58,8 +52,6 @@ class CommonKeywords(MRJob):
             MRStep(mapper=self.mapper_to_years,
                    reducer=self.reducer_find_max_10_per_year)
         ]
-
-
 
 if __name__ == '__main__':
     CommonKeywords.run()
