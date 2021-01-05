@@ -26,18 +26,25 @@ class MRMostSimilarArticle(MRJob):
         return dot/(norm_a*norm_b)
 
     def mapper_get_similarity(self, _, line):
-        """
-        this mapper yields every article summary with its cosine similarity score corresponding to the source
-        :param _: None
-        :param line: one line from the input file, which is an article summary
-        :return: (None, (line, cosine)
-        """
-        both_texts = [self.source, line]
+    """
+    this mapper yields every article summary with its cosine similarity score corresponding to the source
+    :param _: None
+    :param line: one line from the input file, which is an article summary
+    :return: (None, (line, cosine)
+    """
+    line = line.split('"summary": ')
+    # self.output_file.write(str(type(line)) + '\n')
+    try:
+        text_to_check = line[1][1:-2].replace('\\n', ' ')
+        both_texts = [self.source, text_to_check]
+        self.output_file.write(str(line[1] + '\n'))
         both_texts_to_vector = CountVectorizer().fit_transform(both_texts)
         text_1_to_vector = both_texts_to_vector.toarray()[0].tolist()
         text_2_to_vector = both_texts_to_vector.toarray()[1].tolist()
         cosine = self.cosine_similarity(text_1_to_vector, text_2_to_vector)
-        yield None, (line, cosine)
+        yield None, (text_to_check, cosine)
+    except:
+        pass
 
     def combiner_get_batch_most_similar(self, _, papers):  # is it reasonable to use?
         """
@@ -84,4 +91,4 @@ if __name__ == '__main__':
     MRMostSimilarArticle.run()  # MRSimilarArticle is job class
     print("Finding most similar paper took {} seconds".format(time.time() - start))
 
-# python task_5.py arxivData.txt
+# python task_5.py arxivData.json
