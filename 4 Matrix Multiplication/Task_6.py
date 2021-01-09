@@ -45,17 +45,29 @@ class MatrixMultiplication(MRJob):
                 yield (row, column_index), (name, row_index, value)
 
     @staticmethod
+    def combine_tuples(row_column, name_row_or_col_valuelist):
+        yield row_column, name_row_or_col_valuelist
+
+    @staticmethod
     def calculate_dot(row_column, name_row_or_col_valuelist):
+        # MrJob automatically sorts the values of identical keys, so the values will already be in a sorted order:
+        # [[matrix1 name, 0, value], [matrix1 name, 1, value], ..., [matrix1 name, n, value], [matrix2 name, 0, value],
+        # [matrix2 name, 1, value], ..., [matrix2 name, n, value]]
+
         row_column = tuple(row_column)
         name_row_or_col_valuelist = tuple(name_row_or_col_valuelist)
-        # Sort the lists based on their row/column index
-        name_row_or_col_valuelist = sorted(name_row_or_col_valuelist, key=operator.itemgetter(1))
-        # Get the values belonging to matrix1
-        matrix1_values = [value for name, col, value in name_row_or_col_valuelist if name == MRJob.matrix1[0]]
-        # Get the values belonging to matrix2
-        matrix2_values = [value for name, row, value in name_row_or_col_valuelist if name == MRJob.matrix2[0]]
-        # As the tuples were sorted based on their row/column we know they are in the same order so we can zip them
-        value = sum(val1*val2 for val1, val2 in zip(matrix1_values, matrix2_values))
+        common_size = MRJob.matrix1[1][1]  # The common size, equal to MRJob.matrix2[1][0]
+        # Get the values belonging to the matrix with the 'smallest' name (in sorted order), note that this can be
+        # either matrix1 or matrix2
+        matrixA_values = [value for name_row_or_col_value in name_row_or_col_valuelist
+                          for name, row, value in name_row_or_col_value][0:common_size]
+        # Get the values belonging to the matrix with the 'highest' name (in sorted order based on 'row_or_col')
+        # note that this can be either matrix1 or matrix2
+        matrixB_values = [value for name_row_or_col_value in name_row_or_col_valuelist
+                          for name, row, value in name_row_or_col_value][common_size::]
+        # As the tuples were sorted based on their row/column we know they are in the same order so we can zip them,
+        # and take the sum of the products to obtain the value for that specific 'row_column'
+        value = sum(val1*val2 for val1, val2 in zip(matrixA_values, matrixB_values))
         yield row_column, value
 
     def steps(self):
@@ -64,12 +76,10 @@ class MatrixMultiplication(MRJob):
             # We need to perform this in two distinct steps, as the dimensions of both matrices need to be known
             # the first step is negligible in terms of time consumption, so this will not cause any performance issues
             MRStep(mapper=self.generate_tuples,
+                   combiner=self.combine_tuples,
                    reducer=self.calculate_dot)
         ]
 
 
 if __name__ == '__main__':
-    start = time.time()
     MatrixMultiplication.run()
-    total_time = int(time.time() - start)
-    print(f'Took {total_time//60} minutes and {total_time%60} seconds to finish')

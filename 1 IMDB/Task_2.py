@@ -26,10 +26,10 @@ class TopKeywords(MRJob):
         line = list(line.split())
         if line[1] == 'movie':           # titleType is on position 1, only select those which are movies
             genres = line[-1].split(',')  # Genres are on the last position
-            primary_title = nltk.tokenize.word_tokenize(line[2])  # PrimaryTitle is on position 2
+            primary_title = nltk.pos_tag(nltk.tokenize.word_tokenize(line[2]))  # PrimaryTitle is on position 2
             for genre in genres:        # A movie sometimes has multiple genres
                 if genre != '\\N':      # We don't want to include movies which don't have a genre specified
-                    for word, type in nltk.pos_tag(primary_title):
+                    for word, type in primary_title:
                         word = word.lower()
                         # Check whether type and word are meaningful
                         if (type not in self.non_useful_types) and (word not in self.stop_words) and word.isalpha():
@@ -69,7 +69,4 @@ class TopKeywords(MRJob):
 
 
 if __name__ == '__main__':
-    start = time.time()
     TopKeywords.run()
-    total_time = int(time.time() - start)
-    print(f'Took {total_time//60} minutes and {total_time%60} seconds to finish')

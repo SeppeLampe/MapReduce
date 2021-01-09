@@ -14,7 +14,7 @@ class YearlyTopCustomers(MRJob):
     OUTPUT_PROTOCOL = CustomOutputProtocol
 
     @staticmethod
-    def mapper_year_customer_with_cost(_, line):
+    def mapper_year_customer_with_revenue(_, line):
         line = line.split(',')
         if line[0] != 'Invoice':  # This ensures that the file header is not included
             """
@@ -30,28 +30,28 @@ class YearlyTopCustomers(MRJob):
                 yield (year, customer), quantity*price
 
     @staticmethod
-    def sum_value(year_customer, cost):
+    def sum_value(year_customer, revenue):
         # Sum the values
-        yield year_customer, sum(cost)
+        yield year_customer, sum(revenue)
 
     @staticmethod
-    def mapper_to_years(year_customer, yearly_cost):
-        # yield year, (cost, customer)
-        yield year_customer[0], (yearly_cost, year_customer[1])
+    def mapper_to_years(year_customer, yearly_revenue):
+        # yield year, (revenue, customer)
+        yield year_customer[0], (yearly_revenue, year_customer[1])
 
     @staticmethod
-    def max_10_per_year(year, cost_customers):
+    def max_10_per_year(year, revenue_customers):
         """
-        The cost_customer will be sorted (high to low due to reverse=True) based on the first (0th) value
+        The revenue_customer will be sorted (high to low due to reverse=True) based on the first (0th) value
         of each sublist. Then only the first 10 sublists (the ones with the highest price) are selected and yielded.
         """
-        cost_customers = list(cost_customers)
-        for cost_customer in sorted(cost_customers, key=operator.itemgetter(0), reverse=True)[0:10]:
-            yield year, cost_customer
+        revenue_customers = list(revenue_customers)
+        for revenue_customer in sorted(revenue_customers, key=operator.itemgetter(0), reverse=True)[0:10]:
+            yield year, revenue_customer
 
     def steps(self):
         return [
-            MRStep(mapper=self.mapper_year_customer_with_cost,
+            MRStep(mapper=self.mapper_year_customer_with_revenue,
                    combiner=self.sum_value,
                    reducer=self.sum_value),
             MRStep(mapper=self.mapper_to_years,
@@ -61,7 +61,4 @@ class YearlyTopCustomers(MRJob):
 
 
 if __name__ == '__main__':
-    start = time.time()
     YearlyTopCustomers.run()
-    total_time = int(time.time() - start)
-    print(f'Took {total_time//60} minutes and {total_time%60} seconds to finish')

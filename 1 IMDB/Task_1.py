@@ -59,7 +59,4 @@ class CommonKeywords(MRJob):
 
 
 if __name__ == '__main__':
-    start = time.time()
     CommonKeywords.run()
-    total_time = int(time.time() - start)
-    print(f'Took {total_time//60} minutes and {total_time%60} seconds to compute')

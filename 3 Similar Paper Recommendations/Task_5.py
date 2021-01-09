@@ -1,6 +1,5 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
-import time
 import json
 import nltk
 import operator
@@ -21,13 +20,7 @@ class MostSimilarArticle(MRJob):
         # This function allows adding extra command line arguments
         super(MostSimilarArticle, self).configure_args()
         # We'll add an argument 'summary_file' which takes in a file containing the summary of a paper
-        self.add_file_arg('--source_file', default='summary.txt',
-                          help='Location of txt file which contains the summary of a paper')
-
-    def init_mapper(self):
-        # Before the first mapper, we'll the paper we're comparing to into a class variable
-        with open(self.options.source_file, "r") as source_file:
-            self.source_file = source_file.read()
+        self.add_file_arg('--source_file', help='Location of txt file which contains the summary of a paper')
 
     @staticmethod
     def cosine_similarity(vector_a, vector_b):
@@ -59,16 +52,19 @@ class MostSimilarArticle(MRJob):
         text = [lemmatizer.lemmatize(word) for word in text]
         return text
 
-    def get_id_summary(self, path, uri):
-        # Read in the data
-        with open(path, 'r') as file:
-            data = json.load(file)
+    def get_id_summary(self, _, uri):
+        # Read the text we're comparing to into a string variable
+        with open(self.options.source_file, "r") as source_file:
+            source = source_file.read()
+        # Read in the actual data
+        with open(uri, 'r') as input_file:
+            data = json.load(input_file)  # Will be a of dictionaries
         # For each object (info about one specific paper)
         for paper in data:
-            # vectorize the summary and comparison file
-            cv = CountVectorizer((self.source_file, paper['summary']), preprocessor=self.preprocessor,
+            # vectorize the summary and source file
+            cv = CountVectorizer((source, paper['summary']), preprocessor=self.preprocessor,
                                  stop_words='english', tokenizer=self.tokenize_lemmatize)
-            vector1, vector2 = cv.fit_transform((self.source_file, paper['summary'])).toarray()
+            vector1, vector2 = cv.fit_transform((source, paper['summary'])).toarray()
             # Get the cosine similarity between the two files
             cosine_similarity = self.cosine_similarity(vector1, vector2)
             # yield no key and the (paper_id, cosine_similarity) as value
@@ -84,15 +80,13 @@ class MostSimilarArticle(MRJob):
 
     def steps(self):
         return [
-            MRStep(mapper_init=self.init_mapper,
-                   mapper_raw=self.get_id_summary,
+            MRStep(mapper_raw=self.get_id_summary,
                    combiner=self.max_value,
                    reducer=self.max_value)
         ]
 
 
 if __name__ == '__main__':
-    start = time.time()
     MostSimilarArticle.run()
-    total_time = int(time.time() - start)
-    print(f'Took {total_time//60} minutes and {total_time%60} seconds to finish')
+
+# python Task_5.py -r local -v --no-bootstrap-mrjob --source_file summary.txt <"arxivDatasmall.json" > Task_5.txt
