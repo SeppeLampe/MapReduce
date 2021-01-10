@@ -1,3 +1,8 @@
+# To run inline:
+# python "3 Similar Paper Recommendations\Task_5.py" --source_file="3 Similar Paper Recommendations\summary.txt" "3 Similar Paper Recommendations\arxivData.json" > "3 Similar Paper Recommendations\Task_5.txt"
+
+# Due to mapper_raw cannot be run on a local cluster!
+
 from mrjob.job import MRJob
 from mrjob.step import MRStep
 import json
@@ -53,14 +58,18 @@ class MostSimilarArticle(MRJob):
         return text
 
     def get_id_summary(self, _, uri):
+        """
         # Read the text we're comparing to into a string variable
         with open(self.options.source_file, "r") as source_file:
             source = source_file.read()
+        """
         # Read in the actual data
         with open(uri, 'r') as input_file:
             data = json.load(input_file)  # Will be a of dictionaries
         # For each object (info about one specific paper)
         for paper in data:
+            yield paper['id'], paper['summary']
+            """
             # vectorize the summary and source file
             cv = CountVectorizer((source, paper['summary']), preprocessor=self.preprocessor,
                                  stop_words='english', tokenizer=self.tokenize_lemmatize)
@@ -69,6 +78,20 @@ class MostSimilarArticle(MRJob):
             cosine_similarity = self.cosine_similarity(vector1, vector2)
             # yield no key and the (paper_id, cosine_similarity) as value
             yield None, (paper['id'], cosine_similarity)
+            """
+
+    def init_get_cosine_similarity(self):
+        with open(self.options.source_file, "r") as source_file:
+            self.source = source_file.read()
+
+    def get_cosine_similarity(self, id, summary):
+        cv = CountVectorizer((self.source, summary), preprocessor=self.preprocessor,
+                             stop_words='english', tokenizer=self.tokenize_lemmatize)
+        vector1, vector2 = cv.fit_transform((self.source, summary)).toarray()
+        # Get the cosine similarity between the two files
+        cosine_similarity = self.cosine_similarity(vector1, vector2)
+        # yield no key and the (paper_id, cosine_similarity) as value
+        yield None, (id, cosine_similarity)
 
     @staticmethod
     def max_value(_, id_cosine_similarity):
@@ -80,7 +103,9 @@ class MostSimilarArticle(MRJob):
 
     def steps(self):
         return [
-            MRStep(mapper_raw=self.get_id_summary,
+            MRStep(mapper_raw=self.get_id_summary),
+            MRStep(mapper_init=self.init_get_cosine_similarity,
+                   mapper=self.get_cosine_similarity,
                    combiner=self.max_value,
                    reducer=self.max_value)
         ]
@@ -88,5 +113,3 @@ class MostSimilarArticle(MRJob):
 
 if __name__ == '__main__':
     MostSimilarArticle.run()
-
-# python Task_5.py -r local -v --no-bootstrap-mrjob --source_file summary.txt <"arxivDatasmall.json" > Task_5.txt

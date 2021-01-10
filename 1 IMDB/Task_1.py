@@ -1,9 +1,15 @@
+# To run inline:
+# python "1 IMDB\Task_1.py" "1 IMDB\title.basics.tsv" > "1 IMDB\Task_1.txt"
+
+# To run on a local cluster:
+# python "1 IMDB\Task_1.py" -r local --no-bootstrap-mrjob "1 IMDB\title.basics.tsv" > "1 IMDB\Task_1.txt"
+
 from mrjob.job import MRJob
 from mrjob.step import MRStep
 import nltk
 from nltk.corpus import stopwords
-import time
 import re
+import operator
 
 class CustomOutputProtocol:
     # This class will be used to format our output, output needs to be casted to bytes
@@ -14,8 +20,11 @@ class CommonKeywords(MRJob):
     # Set the output protocol to our own, custom protocol
     OUTPUT_PROTOCOL = CustomOutputProtocol
     def init_mapper(self):
+        # We'll generate a list with words to avoid: common stopwords in the most common languages
         self.stop_words = [re.sub("'", "\'", word) for language in ('english', 'spanish', 'french', 'german', 'italian')
                            for word in stopwords.words(language)]
+        # We'll also ignore the word 'untitled'
+        self.stop_words.append('untitled')
         # VBZ = auxiliary verbs, IN = preposition, DT = articles/determinants, CC = conjunction, CNJ = conjunction,
         # PRO = pronoun, POS = possessive ending ('s), P = preposition, the others are the respective symbols.
         self.non_useful_types = ('VBZ', 'IN', 'DT', 'CC', 'CNJ', 'PRO', 'P', 'POS', ',', ':', '.', '\'')
@@ -36,14 +45,18 @@ class CommonKeywords(MRJob):
         yield word, sum(count)
 
     @staticmethod
-    def mapper_None_count_word(word, counts):
+    def mapper_None_count_word(word, count):
         # For each key word yield no key and (count, word) as value
-        yield None, (counts, word)
+        yield None, (count, word)
 
     @staticmethod
     def fifty_max_values(_, count_words):
-        # Sort the count, word pairs based on count and select the 50 highest
-        for count_word in sorted(count_words, reverse=True)[:50]:
+        """
+        Mrjob sorts the pairs based on 'word', no matter the order in which count_words or word_counts is defined.
+        So we need to sort them ourselves based on count and then select the 50 highest
+        """
+        count_words = list(count_words)
+        for count_word in sorted(count_words, key=operator.itemgetter(0), reverse=True)[:50]:
             yield None, count_word
 
     def steps(self):

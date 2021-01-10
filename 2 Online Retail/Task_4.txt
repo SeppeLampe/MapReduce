@@ -1,3 +1,2 @@
 Item '84077' was sold the most: 108545 times. 
 Item '22423' had the highest revenue: €327813.65.
-Took 0 minutes and 38 seconds to finish

@@ -28,4 +28,3 @@ Customer 17511 spent €81490.62 in 2011
 Customer 16684 spent €62778.68 in 2011
 Customer 13694 spent €59768.06 in 2011
 Customer 14096 spent €57120.91 in 2011
-Took 1 minutes and 4 seconds to finish

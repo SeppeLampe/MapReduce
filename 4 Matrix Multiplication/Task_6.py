@@ -1,8 +1,11 @@
+# To run inline:
+# python "4 Matrix Multiplication\Task_6.py" "4 Matrix Multiplication\A.txt" "4 Matrix Multiplication\B.txt" > "4 Matrix Multiplication\C.txt"
+
+# Due to mapper_raw cannot be run on a local cluster!
+
 from mrjob.job import MRJob
 from mrjob.step import MRStep
-import time
 import numpy as np
-import operator
 
 class CustomOutputProtocol:
     # This class will be used to format our output, output needs to be casted to bytes
@@ -46,17 +49,29 @@ class MatrixMultiplication(MRJob):
 
     @staticmethod
     def combine_tuples(row_column, name_row_or_col_valuelist):
+        """
+        This combiner does not change anything drastically, it almost increases the time it takes to run jobs by a
+        factor of ~1.5 but it decreases the amount of data sent to the reducers by ~1/3. So while sacrificing time
+        performance, it will reduce redundant transfer in an actual DFS. Note that when running this program on one
+        machine that without this combiner more RAM is necessary when initialising the reducer. This is because input
+        sent to the reducer is  sorted in memory, this might cause a 'MemoryError' when the system does not have
+        sufficient RAM to process large matrices.
+        """
         yield row_column, name_row_or_col_valuelist
 
     @staticmethod
     def calculate_dot(row_column, name_row_or_col_valuelist):
-        # MrJob automatically sorts the values of identical keys, so the values will already be in a sorted order:
-        # [[matrix1 name, 0, value], [matrix1 name, 1, value], ..., [matrix1 name, n, value], [matrix2 name, 0, value],
-        # [matrix2 name, 1, value], ..., [matrix2 name, n, value]]
-
+        """
+        MrJob automatically sorts the values of identical keys when passing the data to a reducer,
+        so the values for a 'row_column' key will already be in the following sorted order:
+        [[matrix1 name, 0, value], [matrix1 name, 1, value], ..., [matrix1 name, n, value], [matrix2 name, 0, value],
+        [matrix2 name, 1, value], ..., [matrix2 name, n, value]]
+        """
         row_column = tuple(row_column)
         name_row_or_col_valuelist = tuple(name_row_or_col_valuelist)
-        common_size = MRJob.matrix1[1][1]  # The common size, equal to MRJob.matrix2[1][0]
+        # The common size of the two matrices, also equal to MRJob.matrix2[1][0] and len(name_row_or_col_valuelist)//2
+        common_size = MRJob.matrix1[1][1]
+
         # Get the values belonging to the matrix with the 'smallest' name (in sorted order), note that this can be
         # either matrix1 or matrix2
         matrixA_values = [value for name_row_or_col_value in name_row_or_col_valuelist

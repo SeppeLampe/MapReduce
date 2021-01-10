@@ -1,7 +1,12 @@
+# To run inline:
+# python "2 Online Retail\Task_4.py" "2 Online Retail\retail0910.csv" "2 Online Retail\retail1011.csv" > "2 Online Retail\Task_4.txt"
+
+# To run on a local cluster:
+# python "2 Online Retail\Task_4.py" -r local --no-bootstrap-mrjob "2 Online Retail\retail0910.csv" "2 Online Retail\retail1011.csv" > "2 Online Retail\Task_4.txt"
+
 from mrjob.job import MRJob
 from mrjob.step import MRStep
 import operator
-import time
 
 class CustomOutputProtocol:
     # This class will be used to format our output, output needs to be casted to bytes
